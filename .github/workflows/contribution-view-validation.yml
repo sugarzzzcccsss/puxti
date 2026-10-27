@@ -1,0 +1,40 @@
+name: Validate CREATE VIEW names on Linux
+
+on:
+  push:
+    branches: [validation/view-names-20261027]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: f3ae3e85f9b12860de9187b51c4e9876b752dbf7
+          persist-credentials: false
+      - name: Verify tested commit
+        run: |
+          test "$(git rev-parse HEAD)" = "f3ae3e85f9b12860de9187b51c4e9876b752dbf7"
+          git show --no-patch --format=fuller HEAD
+          uname -a
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: uv sync --extra dev
+      - name: Full test suite
+        run: uv run pytest -ra
+        env:
+          NO_COLOR: "1"
+          FORCE_COLOR: "0"
+      - name: Lint source and changed tests
+        run: uv run ruff check src/ tests/connectors/test_sql_utils.py tests/connectors/test_sql_views.py
