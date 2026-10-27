@@ -1,0 +1,40 @@
+name: Validate invalid edge types on Linux
+
+on:
+  push:
+    branches: [validation/invalid-edge-types-20261027]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 0db15115df4f051f0037a452bf56044cd61c22a1
+          persist-credentials: false
+      - name: Verify tested commit
+        run: |
+          test "$(git rev-parse HEAD)" = "0db15115df4f051f0037a452bf56044cd61c22a1"
+          git show --no-patch --format=fuller HEAD
+          uname -a
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: uv sync --extra dev
+      - name: Full test suite
+        run: uv run pytest -ra
+        env:
+          NO_COLOR: "1"
+          FORCE_COLOR: "0"
+      - name: Lint source and changed tests
+        run: uv run ruff check src/ tests/core/test_scanner.py
